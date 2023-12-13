@@ -1,5 +1,7 @@
 # python stuff
 __pycache__/
+runs/label/result*/
+runs/dist/result*/
 
 devel/
 logs/
