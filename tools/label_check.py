@@ -1,5 +1,6 @@
 import cv2 as cv
 import xml.etree.ElementTree as ET
+import matplotlib.pyplot as plt
 import os
 import glob
 
@@ -11,9 +12,10 @@ class LabelCheck:
         self.folder_name = 'result'
 
 
-    def classes (self, class_name, class_color):
+    def classes (self, class_name, class_color, class_counter):
         self.classes_name = class_name
         self.class_color = class_color
+        self.class_count = class_counter
 
 
     def xml_format(self, xml_path):
@@ -39,7 +41,6 @@ class LabelCheck:
         base_name = os.path.basename(img_file)
         save_path = os.path.join(self.output, self.folder_name)
         
-
         # Check if the folder exists, if not, create it
         if not os.path.exists(save_path):
             self.save_path = save_path
@@ -67,22 +68,35 @@ class LabelCheck:
             file.write('\n' + file_name)
 
 
+    def class_dist(self, total, class_name, class_number):
+        plt.figure('Class Distribution')
+        plt.bar(class_name, class_number)
+        plt.title(f"Class Distribution of {total} Images")
+        plt_file = os.path.join(self.save_path, f'{self.folder_name}_plot')
+        plt.savefig(plt_file)
+   
+   
     def label_to_img(self, train=True):
         if train:
             folder_path = os.path.join(self.path, 'train', 'images', '*[jpn]*g')
         else:
             folder_path = folder_path = os.path.join(self.path, 'val', 'images', '*[jpn]*g')
-
+        
+        self.total_img = 0
         for img_file in glob.glob(folder_path):
             xml_file = img_file.replace('images', 'labels').replace(os.path.splitext(img_file)[1], '.xml')
             try:
                 img_width, img_height, boxes = self.xml_format(xml_file)
                 img = cv.imread(img_file)
+                self.total_img += 1
                 for box in boxes:
                     class_id, x_min, y_min, x_max, y_max = box
                     bounding_color = self.class_color[class_id]
                     cv.rectangle(img, (x_min, y_min), (x_max, y_max), bounding_color, 2)
+                    self.class_count[class_id] += 1
+
                 self.save_img(img, img_file)
+                self.class_dist(self.total_img, self.classes_name, self.class_count)
 
             except FileNotFoundError:
                 self.no_label(xml_file)
