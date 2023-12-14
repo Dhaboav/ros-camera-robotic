@@ -101,3 +101,8 @@ class LabelCheck:
             except FileNotFoundError:
                 self.no_label(xml_file)
                 continue
+
+    def run(self, train_boolean, class_name, class_color, class_counter):
+        self.classes(class_name=class_name, class_color=class_color, class_counter=class_counter)
+        self.label_to_img(train=train_boolean)
+        print(f'Done checking {self.total_img} labels')

@@ -9,7 +9,7 @@ class TakeData:
         self.width = width
         self.height = height
 
-        self.output = os.path.join('runs', 'dist')
+        self.output = os.path.join('runs', 'take_data')
         self.folder_name = 'result'
         self.img_counter = 1
         self.base_folder_path = self.check_folder()
