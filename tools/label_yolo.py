@@ -2,6 +2,7 @@ from .label_xml import LabelCheckXML
 import cv2 as cv
 import os
 import glob
+import sys
 
 
 class LabelCheckYOLO(LabelCheckXML):
@@ -17,15 +18,21 @@ class LabelCheckYOLO(LabelCheckXML):
         else:
             folder_path = os.path.join(self.path, 'val', 'images', '*[jpn]*g')
         
-        self.total_img = 0
+        self.img_count = 0
+        self.total_img = len(glob.glob(folder_path))
+
         for img_file in glob.glob(folder_path):
             label_file = img_file.replace('images', 'labels').replace(os.path.splitext(img_file)[1], '.txt')
             try:
                 with open(label_file, "r") as file:
                     label_lines = file.readlines()
                     image = cv.imread(img_file)
-                    self.total_img += 1
+                    self.img_count += 1
                     image_width, image_height = image.shape[1], image.shape[0]
+
+                    progress = int((self.img_count / self.total_img) * 40)
+                    sys.stdout.write('\r[' + '.' * progress + ' ' * (40 - progress) + f'] {self.img_count}/{self.total_img}')
+                    sys.stdout.flush()
 
                     for label_line in label_lines:
                         data = label_line.strip().split(" ")
@@ -38,8 +45,10 @@ class LabelCheckYOLO(LabelCheckXML):
                         self.class_count[class_id] += 1
 
                     self.save_img(image, img_file)
-                    self.class_dist(self.total_img, self.classes_name, self.class_count)
+                    self.class_dist(self.img_count, self.classes_name, self.class_count)
 
             except FileNotFoundError:
                 self.no_label(label_file)
                 continue
+
+        print('\n')

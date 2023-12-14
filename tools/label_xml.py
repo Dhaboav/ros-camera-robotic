@@ -3,6 +3,7 @@ import xml.etree.ElementTree as ET
 import matplotlib.pyplot as plt
 import os
 import glob
+import sys
 
 
 class LabelCheckXML:
@@ -82,13 +83,20 @@ class LabelCheckXML:
         else:
             folder_path = os.path.join(self.path, 'val', 'images', '*[jpn]*g')
         
-        self.total_img = 0
+        self.img_count = 0
+        self.total_img = len(glob.glob(folder_path))
+
         for img_file in glob.glob(folder_path):
             xml_file = img_file.replace('images', 'labels').replace(os.path.splitext(img_file)[1], '.xml')
             try:
                 img_width, img_height, boxes = self.xml_format(xml_file)
                 img = cv.imread(img_file)
-                self.total_img += 1
+                self.img_count += 1
+
+                progress = int((self.img_count / self.total_img) * 40)
+                sys.stdout.write('\r[' + '.' * progress + ' ' * (40 - progress) + f'] {self.img_count}/{self.total_img}')
+                sys.stdout.flush()
+
                 for box in boxes:
                     class_id, x_min, y_min, x_max, y_max = box
                     bounding_color = self.class_color[class_id]
@@ -96,13 +104,15 @@ class LabelCheckXML:
                     self.class_count[class_id] += 1
 
                 self.save_img(img, img_file)
-                self.class_dist(self.total_img, self.classes_name, self.class_count)
+                self.class_dist(self.img_count, self.classes_name, self.class_count)
 
             except FileNotFoundError:
                 self.no_label(xml_file)
                 continue
 
+        print('\n')
+
     def run(self, train_boolean, class_name, class_color, class_counter):
         self.classes(class_name=class_name, class_color=class_color, class_counter=class_counter)
         self.label_to_img(train=train_boolean)
-        print(f'Done checking {self.total_img} labels')
+        print(f'Done checking {self.img_count} labels')
