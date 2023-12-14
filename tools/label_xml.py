@@ -8,111 +8,105 @@ import sys
 
 class LabelCheckXML:
     def __init__(self, dataset_path):
-        self.path = dataset_path
-        self.output = 'runs\label'
-        self.folder_name = 'result'
+        self.dataset_path   = dataset_path
+        self.result_path    = os.path.join('runs', 'label')
+        self.folder_name    = 'exp' 
+        self.folder_path    = self.checking_folder_name()
+        self.image_counter  = 0
 
+    # Directory Stuff
+    def checking_folder_name(self):
+        folder = os.path.join(self.result_path, self.folder_name)
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+            return folder
 
-    def classes (self, class_name, class_color, class_counter):
-        self.classes_name = class_name
-        self.class_color = class_color
-        self.class_count = class_counter
+        folder_count = 2
+        while True:
+            new_folder_name = f'{self.folder_name}{folder_count}'
+            folder = os.path.join(self.result_path, new_folder_name)
+            if not os.path.exists(folder):
+                os.makedirs(folder)
+                return folder
+            folder_count += 1
 
+    def write_label_image(self, image, result_image):
+        image_path = os.path.join(self.folder_path, os.path.basename(image))
+        cv.imwrite(image_path, result_image)
 
-    def xml_format(self, xml_path):
+    def no_label(self, missing_label):
+        log_file = os.path.join(self.folder_path, 'NoLabel.txt')
+        with open(log_file, 'a') as file:
+            file.write('\n' + missing_label)
+    # ==============================================================================
+
+    # Class Stuff     
+    def class_data(self, class_name, class_color, class_count):
+        self.class_names    = class_name
+        self.class_colors   = class_color
+        self.class_counts   = class_count
+
+    def class_plt(self, total, class_name, class_number):
+        plt.title(f"Class Distribution of {total} Images")
+        plt.bar(class_name, class_number)
+        plt_file = os.path.join(self.folder_path, 'PlotClass')
+        plt.savefig(plt_file)
+    # ==============================================================================
+
+    # Core
+    def read_xml(self, xml_path):
         tree = ET.parse(xml_path)
         root = tree.getroot()
         size = root.find('size')
-        img_width = int(size.find('width').text)
-        img_height = int(size.find('height').text)
+        image_width = int(size.find('width').text)
+        image_height = int(size.find('height').text)
         boxes = []
         for obj in root.findall('object'):
-            class_name = obj.find('name').text
-            class_id = self.classes_name.index(class_name)
+            name_of_class = obj.find('name').text
+            id_of_class = self.class_names.index(name_of_class)
             box = obj.find('bndbox')
             x_min = int(box.find('xmin').text)
             y_min = int(box.find('ymin').text)
             x_max = int(box.find('xmax').text)
             y_max = int(box.find('ymax').text)
-            boxes.append((class_id, x_min, y_min, x_max, y_max))
-        return img_width, img_height, boxes
+            boxes.append((id_of_class, x_min, y_min, x_max, y_max))
 
+        return image_width, image_height, boxes
 
-    def save_img(self, img, img_file):
-        base_name = os.path.basename(img_file)
-        save_path = os.path.join(self.output, self.folder_name)
-        
-        # Check if the folder exists, if not, create it
-        if not os.path.exists(save_path):
-            self.save_path = save_path
-            os.makedirs(save_path)
-
-        # Save the image in the result folder
-        save = os.path.join(save_path, base_name)
-
-        # Handle the case where the file already exists
-        count = 2
-        while os.path.exists(save):
-            filename, extension = os.path.splitext(base_name)
-            folder = f'{self.folder_name}{count}'
-            save_path = os.path.join(self.output, folder)
-            self.save_path = save_path
-            os.makedirs(save_path, exist_ok=True)
-            save = os.path.join(save_path, base_name)
-            count += 1
-        cv.imwrite(save, img)
-
-
-    def no_label(self, file_name):
-        log_file = os.path.join(self.save_path, f'{self.folder_name}_log.txt')
-        with open(log_file, 'a') as file:
-            file.write('\n' + file_name)
-
-
-    def class_dist(self, total, class_name, class_number):
-        plt.figure('Class Distribution')
-        plt.bar(class_name, class_number)
-        plt.title(f"Class Distribution of {total} Images")
-        plt_file = os.path.join(self.save_path, f'{self.folder_name}_plot')
-        plt.savefig(plt_file)
-   
-   
-    def label_to_img(self, train=True):
+    def label_to_image(self, train=True):
         if train:
-            folder_path = os.path.join(self.path, 'train', 'images', '*[jpn]*g')
+            data_category = os.path.join(self.dataset_path, 'train', 'images', '*[jpn]*g')
         else:
-            folder_path = os.path.join(self.path, 'val', 'images', '*[jpn]*g')
+            data_category = os.path.join(self.dataset_path, 'val', 'images', '*[jpn]*g')
         
-        self.img_count = 0
-        self.total_img = len(glob.glob(folder_path))
-
-        for img_file in glob.glob(folder_path):
-            xml_file = img_file.replace('images', 'labels').replace(os.path.splitext(img_file)[1], '.xml')
+        self.total_image = len(glob.glob(data_category))
+        for image in glob.glob(data_category):
+            xml_file = image.replace('images', 'labels').replace(os.path.splitext(image)[1], '.xml')
             try:
-                img_width, img_height, boxes = self.xml_format(xml_file)
-                img = cv.imread(img_file)
-                self.img_count += 1
-
-                progress = int((self.img_count / self.total_img) * 40)
-                sys.stdout.write('\r[' + '.' * progress + ' ' * (40 - progress) + f'] {self.img_count}/{self.total_img}')
+                image_width, image_height, boxes = self.read_xml(xml_file)
+                read_image = cv.imread(image)
+                
+                # Print out progress bar
+                self.image_counter += 1
+                progress = int((self.image_counter / self.total_image) * 40)
+                sys.stdout.write('\r[' + '.' * progress + ' ' * (40 - progress) + f'] {self.image_counter}/{self.total_image}')
                 sys.stdout.flush()
 
+                # Read info from label
                 for box in boxes:
                     class_id, x_min, y_min, x_max, y_max = box
-                    bounding_color = self.class_color[class_id]
-                    cv.rectangle(img, (x_min, y_min), (x_max, y_max), bounding_color, 2)
-                    self.class_count[class_id] += 1
+                    bounding_color = self.class_colors[class_id]
+                    cv.rectangle(read_image, (x_min, y_min), (x_max, y_max), bounding_color, 2)
+                    self.class_counts[class_id] += 1
 
-                self.save_img(img, img_file)
-                self.class_dist(self.img_count, self.classes_name, self.class_count)
+                self.write_label_image(image, read_image)
+                self.class_plt(self.image_counter, self.class_names, self.class_counts)
 
             except FileNotFoundError:
                 self.no_label(xml_file)
                 continue
-
-        print('\n')
+    # ==============================================================================
 
     def run(self, train_boolean, class_name, class_color, class_counter):
-        self.classes(class_name=class_name, class_color=class_color, class_counter=class_counter)
-        self.label_to_img(train=train_boolean)
-        print(f'Done checking {self.img_count} labels')
+        self.class_data(class_name, class_color, class_counter)
+        self.label_to_image(train_boolean)

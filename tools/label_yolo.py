@@ -11,44 +11,38 @@ class LabelCheckYOLO(LabelCheckXML):
         x_max, y_max = int((x + width / 2) * image_width), int((y + height / 2) * image_height)
         return x_min, y_min, x_max, y_max
     
-
-    def label_to_img(self, train=True):
+    def label_to_image(self, train=True):
         if train:
-            folder_path = os.path.join(self.path, 'train', 'images', '*[jpn]*g')
+             data_category = os.path.join(self.dataset_path, 'train', 'images', '*[jpn]*g')
         else:
-            folder_path = os.path.join(self.path, 'val', 'images', '*[jpn]*g')
+             data_category = os.path.join(self.dataset_path, 'val', 'images', '*[jpn]*g')
         
-        self.img_count = 0
-        self.total_img = len(glob.glob(folder_path))
-
-        for img_file in glob.glob(folder_path):
-            label_file = img_file.replace('images', 'labels').replace(os.path.splitext(img_file)[1], '.txt')
+        self.total_image = len(glob.glob(data_category))
+        for image in glob.glob( data_category):
+            yolo_file = image.replace('images', 'labels').replace(os.path.splitext(image)[1], '.txt')
             try:
-                with open(label_file, "r") as file:
-                    label_lines = file.readlines()
-                    image = cv.imread(img_file)
-                    self.img_count += 1
-                    image_width, image_height = image.shape[1], image.shape[0]
+                with open(yolo_file, "r") as label:
+                    label_lines = label.readlines()
+                    read_image = cv.imread(image)
+                    image_width, image_height = read_image.shape[1], read_image.shape[0]
 
-                    progress = int((self.img_count / self.total_img) * 40)
-                    sys.stdout.write('\r[' + '.' * progress + ' ' * (40 - progress) + f'] {self.img_count}/{self.total_img}')
+                    # Print out progress bar
+                    self.image_counter += 1
+                    progress = int((self.image_counter / self.total_image) * 40)
+                    sys.stdout.write('\r[' + '.' * progress + ' ' * (40 - progress) + f'] {self.image_counter}/{self.total_image}')
                     sys.stdout.flush()
 
                     for label_line in label_lines:
                         data = label_line.strip().split(" ")
                         class_id, x_coor, y_coor, width, height = (int(data[0]), float(data[1]), float(data[2]), float(data[3]),float(data[4]))
                         x_min, y_min, x_max, y_max = self.yolo_to_opencv(x_coor, y_coor, width, height, image_width, image_height)
+                        bounding_color = self.class_colors[class_id]
+                        cv.rectangle(read_image, (x_min, y_min), (x_max, y_max), bounding_color, 2)
+                        self.class_counts[class_id] += 1
 
-                        # Draw rectangle with corresponding color
-                        bounding_color = self.class_color[class_id]
-                        cv.rectangle(image, (x_min, y_min), (x_max, y_max), bounding_color, 2)
-                        self.class_count[class_id] += 1
-
-                    self.save_img(image, img_file)
-                    self.class_dist(self.img_count, self.classes_name, self.class_count)
+                    self.write_label_image(image, read_image)
+                    self.class_plt(self.image_counter, self.class_names, self.class_counts)
 
             except FileNotFoundError:
-                self.no_label(label_file)
+                self.no_label(yolo_file)
                 continue
-
-        print('\n')
