@@ -1,6 +1,7 @@
 # python stuff
 __pycache__/
 runs/*
+*.pt
 
 devel/
 logs/
