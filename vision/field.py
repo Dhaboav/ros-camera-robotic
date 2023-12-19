@@ -5,8 +5,11 @@ import numpy as np
 def field_color(hsv, upper, lower):
     upper_bound = np.array([upper[0], upper[1], upper[2]])
     lower_bound = np.array([lower[0], lower[1], lower[2]])
+    kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (5,5))
     color_filter = cv.inRange(src=hsv, lowerb=lower_bound, upperb=upper_bound)
-    return color_filter
+    mask_close = cv.morphologyEx(color_filter, cv.MORPH_CLOSE, kernel, iterations=5)
+    mask_open = cv.morphologyEx(mask_close, cv.MORPH_OPEN, None, iterations=1)
+    return mask_open
 
 
 def field_contour(color_input, output):
