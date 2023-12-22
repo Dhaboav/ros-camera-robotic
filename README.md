@@ -44,18 +44,12 @@ File structure of this repository
 |   ├── label
 |   └── take_data
 |
-├── tools
-|   |
-|   ├── change_name
-|   ├── color
-|   ├── label_check
-|   └── take_data
-|
+├── tools submodule
 ├── vision  
 |   |
 |   └── field
 |
-└── object_detection
+└── detect.py
 ```
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
