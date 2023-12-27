@@ -1,8 +1,23 @@
 import cv2 as cv
+import numpy as np
 import jetson_inference
 import jetson_utils
 
-net = jetson_inference.detectNet(model='', labels='', threshold='')
+
+# Setting env to load model
+model_path = r'/home/nano/jetson-inference/python/training/detection/ssd/models/test2/ssd-mobilenet.onnx'
+labels_path = r'/home/nano/jetson-inference/python/training/detection/ssd/models/test2/labels.txt'
+threshold = 0.5
+
+net = jetson_inference.detectNet(
+    model=model_path, 
+    labels=labels_path,
+    input_blob='input_0',
+    output_cvg='scores',
+    output_bbox='boxes', 
+    threshold=threshold
+    )
+
 camera = cv.VideoCapture(0)
 camera.set(3, 640)
 camera.set(4, 480)
@@ -11,8 +26,14 @@ while True:
     ret, frame = camera.read()
     if not ret:
         break
+    
+    # Apply ROI
+    circle_mask = np.zeros_like(frame)
+    cv.circle(img=circle_mask, center=(frame.shape[1]// 2, (frame.shape[0]// 2)-30), radius=230, color=(255, 255, 255), thickness=-1)
+    circle_roi = cv.bitwise_and(frame, circle_mask)
 
-    frame_cuda = jetson_utils.cudaFromNumpy(frame)
+    
+    frame_cuda = jetson_utils.cudaFromNumpy(circle_roi)
     detections = net.Detect(frame_cuda)
 
     for info in detections:
@@ -42,7 +63,7 @@ while True:
     fps_text = "FPS: {:.0f}".format(net.GetNetworkFPS())
     cv.putText(frame, fps_text, (10, 20), cv.FONT_HERSHEY_PLAIN, 1.5, (255, 255, 255), 2)
 
-    cv.imshow("test", frame)
+    cv.imshow("test", circle_roi)
     if cv.waitKey(1) & 0xFF == ord("x"):
         break
 
