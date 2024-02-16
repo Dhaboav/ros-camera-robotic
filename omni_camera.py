@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
+import cv2 as cv
+import numpy as np
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Int32
-
-import cv2 as cv
-import serial
-
 from robot_vision.variable import OMNI_CAMERA_INDEX, WIDTH, HEIGHT
-from robot_vision import LOWER, UPPER, COM
-
+from robot_vision.variable import LOWER, UPPER
+from robot_vision.variable import X_OMNI, Y_OMNI, DILATE, ERODE, KERNEL
 
 class OmniCamera(Node):
     def __init__(self):
@@ -23,42 +20,81 @@ class OmniCamera(Node):
         self.lower_value = LOWER
         self.upper_value = UPPER
 
+        # Pengaturan titik tengah omni
+        self.x_omni = X_OMNI
+        self.y_omni = Y_OMNI
+
         # Pengaturan ROS2
-        self.camera_pubs_ = self.create_publisher(Int32, '/camera', 10)
-        self.create_timer(1.0, self.serial_arduino)
+        # self.camera_pubs_ = self.create_publisher(Int32, '/camera', 10)
+        self.timer = self.create_timer(0.1, self.ball_detection)
 
-        # Pengaturan arduino
-        self.serial_port_ = serial.Serial(COM, baudrate=9600)
-        self.session_ = 0
-
-    def send_command(self):
-        msg = Int32()
-        msg.data = self.session_
-        self.camera_pubs_.publish(msg)
-        self.get_logger().info(str(msg.data))
-
-    def serial_arduino(self):
-        # read data from arduino
-        message = self.serial_port_.readline()
-        message = message.decode('utf-8').strip()
-        self.session_ = int(message)
-
+     # Menghitung distance asli dari bola ke titik pusat robot
+    def exponential_function(self, x):
+        return np.exp(0.0154 * x + 3.0524)
+    
+    def map_float(self, perimeter, in_min, in_max, out_min, out_max):
+        return int((perimeter - in_min) * (out_max - out_min) / (in_max - in_min) + out_min)
+    
     def ball_detection(self):
+        distance_estimation = 0
         ret, frame = self.front_camera.read()
         if ret:
             convert_hsv = cv.cvtColor(src=frame, code=cv.COLOR_BGR2HSV)
             color_mask = cv.inRange(src=convert_hsv, lowerb=self.lower_value, upperb=self.upper_value)
-            result = cv.bitwise_and(src1=frame, src2=frame, mask=color_mask)
-            cv.imshow('omni', result)
-            cv.waitKey(1)
+            kernel = np.ones((KERNEL[0], KERNEL[1]), np.uint8)
+            erode = cv.erode(color_mask, kernel, iterations=ERODE)
+            dilated = cv.dilate(erode, None, iterations=DILATE)
+            contours, _ = cv.findContours(color_mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+            distance = 0
+            for contour in contours:
+                area = cv.contourArea(contour)
+
+                # Memfilter kontur berdasarkan luas (sesuaikan sesuai kebutuhan)
+                if area > 1:
+                    x, y, w, h = cv.boundingRect(contour)
+                    # Menggambar bounding box pada frame
+                    cv.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 255), 2)
+
+                    ((x, y), radius) = cv.minEnclosingCircle(contour)
+                    center = (int(x), int(y))
+                    distance = np.sqrt((x - self.x_omni) ** 2 + (y - self.y_omni) ** 2)  # Menghitung distance piksel dari objek ke titik tengah
+                    distance_estimation = self.exponential_function(distance)
+
+                    # Titik tengah
+                    cv.circle(frame, center, 2, (0, 255, 0), -1)
+                    cv.putText(img=frame, text=f'{distance_estimation:.0f} CM', org=(15,10), fontFace=cv.FONT_HERSHEY_COMPLEX,
+                               fontScale=1, color=(0, 255, 0), thickness=1)
+                    
+                    cv.circle(img=frame, center=(self.x_omni, self.y_omni), radius=10,
+                              color=(0,255,0), thickness= -1)
+                    
+                    cv.line(img=frame, pt1=(self.x_omni, self.y_omni), pt2=(int(x), int(y)),
+                            color=(0,0,255), thickness=2)
+                   
+            
+            cv.imshow('dark', dilated)
+            cv.imshow('result', frame)
+            key = cv.waitKey(1)
+            if key == ord('q'):
+                cv.destroyAllWindows()
+                self.destroy_node()
+            
+            self.get_logger().info(f'{distance_estimation:.0f}')
+
+    def destroy_node(self):
+        self.front_camera.release()
+        cv.destroyAllWindows()
+        super().destroy_node()
 
 
 def main(args=None):
     rclpy.init(args=args)
     node = OmniCamera()
-    rclpy.spin(node)
-    rclpy.shutdown()
-
+    try:
+        rclpy.spin(node)
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
 
 if __name__ == '__main__':
     main()
