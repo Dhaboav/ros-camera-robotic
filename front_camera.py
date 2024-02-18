@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
+import cv2 as cv
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Int32
-
-import cv2 as cv
-import numpy as np
 import jetson_inference
 import jetson_utils
-
 from robot_vision.variable import FRONT_CAMERA_INDEX, WIDTH, HEIGHT
 from robot_vision.variable import MODEL_PATH, LABEL_PATH, THRESHOLD
 
@@ -17,8 +13,6 @@ class FrontCamera(Node):
 
         # Pengaturan ROS2
         super().__init__(node_name='front_camera')
-        self.previous_command = 0
-        self.open_camera = self.create_subscription(Int32, '/camera', self.receiver, 10)
         
         # Pengaturan JST
         self.net_ = jetson_inference.detectNet(
@@ -31,21 +25,11 @@ class FrontCamera(Node):
             )
         
         # Pengaturan kamera
-        self.front_camera = cv.VideoCapture(FRONT_CAMERA_INDEX)
+        self.front_camera = cv.VideoCapture(FRONT_CAMERA_INDEX, cv.CAP_V4L)
         self.front_camera.set(3, WIDTH)
         self.front_camera.set(4, HEIGHT)
+        self.timer = self.create_timer(0.1, self.processing_image)
 
-    def receiver(self, msg:Int32):
-        if self.previous_command != msg:
-            if self.previous_command == 1:
-                self.processing_image()
-                self.get_logger().info('Memulai deteksi...')
-            else:
-                self.close_camera()
-                
-            self.previous_command = msg
-        else:
-            self.get_logger().info('Standby...')
 
     def processing_image(self):
         ret, frame = self.front_camera.read()
@@ -76,21 +60,29 @@ class FrontCamera(Node):
                     cv.putText(frame, class_name, (x1, y1-10), cv.FONT_HERSHEY_PLAIN, 1.5, (255, 0, 0), 2)
                     cv.circle(frame, (int(centeroid[0]), int(centeroid[1])), 5, (255, 0, 0), -1)
 
+
         fps_text = "FPS: {:.0f}".format(self.net_.GetNetworkFPS())
-        cv.putText(frame, fps_text, (10, 20), cv.FONT_HERSHEY_PLAIN, 1.5, (255, 255, 255), 2)
+        cv.putText(frame, fps_text, (10, 20), cv.FONT_HERSHEY_PLAIN, 1.0, (255, 255, 255), 2)
         cv.imshow('Result', frame)
-        cv.waitKey(1)
+        key = cv.waitKey(1)
+        if key == ord('q'):
+            cv.destroyAllWindows()
+            self.destroy_node()
+            self.get_logger().info('Mematikan kamera...')
 
-    def close_camera(self):
+    def destroy_node(self):
         self.front_camera.release()
-        self.get_logger().info('Mematikan kamera...')
-
+        cv.destroyAllWindows()
+        super().destroy_node()
 
 def main(args=None):
     rclpy.init(args=args)
     node = FrontCamera()
-    rclpy.spin(node)
-    rclpy.shutdown()
+    try:
+        rclpy.spin(node)
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
 
 
 if __name__ == '__main__':

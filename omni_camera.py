@@ -12,9 +12,9 @@ class OmniCamera(Node):
         super().__init__(node_name='omni_camera')
 
         # Pengaturan kamera
-        self.front_camera = cv.VideoCapture(OMNI_CAMERA_INDEX)
-        self.front_camera.set(3, WIDTH)
-        self.front_camera.set(4, HEIGHT)
+        self.omni_camera = cv.VideoCapture(OMNI_CAMERA_INDEX, cv.CAP_V4L)
+        self.omni_camera.set(3, WIDTH)
+        self.omni_camera.set(4, HEIGHT)
         
         # Pengaturan warna bola (orange)
         self.lower_value = LOWER
@@ -25,7 +25,6 @@ class OmniCamera(Node):
         self.y_omni = Y_OMNI
 
         # Pengaturan ROS2
-        # self.camera_pubs_ = self.create_publisher(Int32, '/camera', 10)
         self.timer = self.create_timer(0.1, self.ball_detection)
 
      # Menghitung distance asli dari bola ke titik pusat robot
@@ -37,7 +36,7 @@ class OmniCamera(Node):
     
     def ball_detection(self):
         distance_estimation = 0
-        ret, frame = self.front_camera.read()
+        ret, frame = self.omni_camera.read()
         if ret:
             convert_hsv = cv.cvtColor(src=frame, code=cv.COLOR_BGR2HSV)
             color_mask = cv.inRange(src=convert_hsv, lowerb=self.lower_value, upperb=self.upper_value)
@@ -62,8 +61,8 @@ class OmniCamera(Node):
 
                     # Titik tengah
                     cv.circle(frame, center, 2, (0, 255, 0), -1)
-                    cv.putText(img=frame, text=f'{distance_estimation:.0f} CM', org=(15,10), fontFace=cv.FONT_HERSHEY_COMPLEX,
-                               fontScale=1, color=(0, 255, 0), thickness=1)
+                    cv.putText(img=frame, text=f'{distance_estimation:.0f} CM', org=(10,20), fontFace=cv.FONT_HERSHEY_PLAIN,
+                               fontScale=1.0, color=(0, 255, 0), thickness=1)
                     
                     cv.circle(img=frame, center=(self.x_omni, self.y_omni), radius=10,
                               color=(0,255,0), thickness= -1)
@@ -82,7 +81,7 @@ class OmniCamera(Node):
             self.get_logger().info(f'{distance_estimation:.0f}')
 
     def destroy_node(self):
-        self.front_camera.release()
+        self.omni_camera.release()
         cv.destroyAllWindows()
         super().destroy_node()
 
