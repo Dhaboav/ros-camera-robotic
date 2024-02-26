@@ -2,10 +2,12 @@
 import cv2 as cv
 import numpy as np
 import rclpy
+import serial
 from rclpy.node import Node
 from robot_vision.variable import OMNI_CAMERA_INDEX, WIDTH, HEIGHT
 from robot_vision.variable import LOWER, UPPER
 from robot_vision.variable import X_OMNI, Y_OMNI, DILATE, ERODE, KERNEL
+from robot_vision.variable import COM_OMNI
 
 class OmniCamera(Node):
     def __init__(self):
@@ -27,7 +29,10 @@ class OmniCamera(Node):
         # Pengaturan ROS2
         self.timer = self.create_timer(0.1, self.ball_detection)
 
-     # Menghitung distance asli dari bola ke titik pusat robot
+        # Pengaturan serial arduino
+        self.serial_port = serial.Serial(COM_OMNI, baudrate=9600)
+
+    # Menghitung distance asli dari bola ke titik pusat robot
     def exponential_function(self, x):
         return np.exp(0.0154 * x + 3.0524)
     
@@ -79,6 +84,11 @@ class OmniCamera(Node):
                 self.destroy_node()
             
             self.get_logger().info(f'{distance_estimation:.0f}')
+            self.serial_arduino(int(distance_estimation))
+
+    def serial_arduino(self, msg:int):
+        self.serial_port.write(bytes([msg]))
+        self.serial_port.flush()
 
     def destroy_node(self):
         self.omni_camera.release()
