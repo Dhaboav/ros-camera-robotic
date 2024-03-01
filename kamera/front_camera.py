@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
+import json
 import cv2 as cv
 import rclpy
 import serial
 from rclpy.node import Node
 import jetson_inference
 import jetson_utils
-from robot_vision.variable import FRONT_CAMERA_INDEX, WIDTH, HEIGHT
-from robot_vision.variable import MODEL_PATH, LABEL_PATH, THRESHOLD
-from robot_vision.variable import COM_FRONT
+
 
 
 class FrontCamera(Node):
