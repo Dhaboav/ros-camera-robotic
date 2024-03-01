@@ -30,12 +30,12 @@ class RosReceiverControl(Node):
 
 
 def main(args=None):
-    current = Path(__file__).resolve().parent
-    parent = current.parent
-    setings = parent / 'settings.json'
+    current_folder = Path(__file__).resolve().parent
+    parent_folder = current_folder.parent
+    setting_path = parent_folder / 'settings.json'
 
     # Read JSON data from a file
-    with open(setings, "r") as json_file:
+    with open(setting_path, "r") as json_file:
         data = json.load(json_file)
 
     client = Client(host=data["IP_BASESTATION"])
