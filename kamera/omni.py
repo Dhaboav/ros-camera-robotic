@@ -111,10 +111,13 @@ def main(args=None):
         data = json.load(json_file)
 
     rclpy.init(args=args)
-    node = Omni(OCI=data["OCI"], width=data["WIDTH"], height=data["HEIGHT"], 
-                lower=data["LOWER"], upper=data["UPPER"], x_omni=data["X"], 
-                y_omni=data["Y"], com=data["OMNI_COM"], kernel=data["KERNEL"], 
-                erosi=data["ERODE"], dilasi=data["DILATE"])
+    node = Omni(OCI=data["camera"]["OCI"], width=data["camera"]["WIDTH"], 
+                height=data["camera"]["HEIGHT"], 
+                lower=data["omniCamera"]["LOWER"], upper=data["omniCamera"]["UPPER"], 
+                x_omni=data["omniCamera"]["X"], y_omni=data["omniCamera"]["Y"], 
+                com=data["omniCamera"]["COM"], kernel=data["omniCamera"]["KERNEL"], 
+                erosi=data["omniCamera"]["ERODE"], dilasi=data["omniCamera"]["DILATE"]
+    )
     try:
         rclpy.spin(node)
     finally:

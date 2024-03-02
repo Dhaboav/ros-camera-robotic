@@ -95,8 +95,11 @@ def main(args=None):
 
 
     rclpy.init(args=args)
-    node = Front(model=data["MODEL"], label=data["LABEL"], threshold=data["THRESHOLD"], 
-                FCI=data["FCI"], width=data["WIDTH"], height=data["HEIGHT"], com=data["FRONT_COM"])
+    node = Front(model=data["frontCamera"]["MODEL"], label=data["frontCamera"]["LABEL"], 
+                threshold=data["frontCamera"]["THRESHOLD"], FCI=data["camera"]["FCI"], 
+                width=data["camera"]["WIDTH"], height=data["camera"]["HEIGHT"],
+                com=data["frontCamera"]["COM"]
+    )
     try:
         rclpy.spin(node)
     finally:

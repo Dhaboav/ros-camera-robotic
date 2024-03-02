@@ -38,7 +38,7 @@ def main(args=None):
     with open(setting_path, "r") as json_file:
         data = json.load(json_file)
 
-    client = Client(host=data["IP_BASESTATION"])
+    client = Client(host=data["control"]["IP_BASESTATION"])
     connect_thread = threading.Thread(target=client.connect)
     connect_thread.start()
     
