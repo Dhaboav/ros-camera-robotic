@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import json
 import rclpy
-# import serial
+import serial
 import threading
 from pathlib import Path
 from rclpy.node import Node
@@ -10,23 +10,23 @@ from ros_robot.komunikasi.client_side import Client
 
 
 class RosReceiverControl(Node):
-    def __init__(self):
+    def __init__(self, com:str):
         super().__init__('Testing')
-        # self.__serial_port = serial.Serial(COM, baudrate=9600)
+        self.__serial_port = serial.Serial(com, baudrate=9600)
         self.__previous_msg = 'S'
         self.__tester = self.create_timer(1.0, self.timer_callback)
 
     def timer_callback(self):
+        self.serial_arduino(self.__previous_msg)
         self.get_logger().info(self.__previous_msg)
 
     def receiver_callback(self, msg:str):
         if self.__previous_msg != msg:
             self.__previous_msg = msg
          
-
-    # def serial_arduino(self, msg:Int32):
-    #     self.serial_port.write(bytes([msg.data]))
-    #     self.serial_port.flush()
+    def serial_arduino(self, msg:str):
+        self.__serial_port.write(msg.encode())
+        self.__serial_port.flush()
 
 
 def main(args=None):
@@ -44,7 +44,7 @@ def main(args=None):
     
     # Ros
     rclpy.init(args=args)
-    node = RosReceiverControl()
+    node = RosReceiverControl(com=data["control"]["COM"])
     client.set_message_callback(callback=node.receiver_callback)
     rclpy.spin(node)
     rclpy.shutdown()
