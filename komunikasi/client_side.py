@@ -35,7 +35,7 @@ class Client:
         if self._connected:
             try:
                 if self._message_callback:
-                    self._message_callback('S')
+                    self._message_callback('k')
             except Exception as e:
                 print(e)
             finally:
@@ -44,7 +44,7 @@ class Client:
                 self.connect()
         else:
             if self._message_callback:
-                    self._message_callback('S')
+                    self._message_callback('k')
             self.connect()
 
     # Setter
