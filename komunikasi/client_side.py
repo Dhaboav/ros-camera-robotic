@@ -7,6 +7,7 @@ class Client:
         self._connected = False
         self._message_callback = None
         self.host = host
+        self._client_socket = None
 
     def connect(self):
         if not self._connected:
@@ -16,13 +17,7 @@ class Client:
                 self._connected = True
                 if self._message_callback:
                         self._message_callback('Tersambung')
-                while self._connected:
-                    _msg = self._client_socket.recv(1024)
-                    if not _msg:
-                        self._handle_disconnect()
-                        break
-                    if self._message_callback:
-                        self._message_callback(_msg.decode('utf-8'))
+                self._receive_messages()
             except socket.timeout:
                 self._handle_disconnect()
             except ConnectionResetError:
@@ -31,7 +26,19 @@ class Client:
                 self._handle_disconnect()
 
     # Other
-    def _handle_disconnect(self):
+    def _receive_messages(self):
+        while self._connected:
+            try:
+                _msg = self._client_socket.recv(1024)
+                if not _msg:
+                    self._handle_disconnect()
+                    break
+                if self._message_callback:
+                    self._message_callback(_msg.decode('utf-8'))
+            except Exception:
+                self._handle_disconnect()
+
+    def disconnect(self):
         if self._connected:
             try:
                 if self._message_callback:
@@ -41,11 +48,10 @@ class Client:
             finally:
                 self._client_socket.close()
                 self._connected = False
-                self.connect()
-        else:
-            if self._message_callback:
-                    self._message_callback('k')
-            self.connect()
+
+    def _handle_disconnect(self):
+        self.disconnect()
+        self.connect()
 
     # Setter
     def set_message_callback(self, callback) -> str:
