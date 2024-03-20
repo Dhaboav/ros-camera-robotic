@@ -3,7 +3,7 @@ import rclpy
 import serial
 import cv2 as cv
 import numpy as np
-from model import Model
+from ros_robot.model import Model
 from rclpy.node import Node
 
 

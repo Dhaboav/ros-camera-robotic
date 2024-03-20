@@ -1,9 +1,10 @@
+#!/usr/bin/env python3
 import json
 
 
 class Model:
     def __init__(self) -> None:
-        with open('settings.json') as json_file:
+        with open('settings.json', 'r') as json_file:
             json_data = json.load(json_file)
 
         self.front_camera = [
@@ -29,7 +30,3 @@ class Model:
             json_data['omniCamera']['erodeValue'],
             json_data['omniCamera']['dilasiValue']
         ]
-
-m = Model()
-config = m.front_camera
-print(config[1])

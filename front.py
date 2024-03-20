@@ -3,7 +3,7 @@ import rclpy
 import serial
 import cv2 as cv
 import jetson_utils
-from model import Model
+from ros_robot.model import Model
 import jetson_inference
 from rclpy.node import Node
 
