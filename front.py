@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+import rclpy
+import serial
+import cv2 as cv
+import jetson_utils
+from model import Model
+import jetson_inference
+from rclpy.node import Node
+
+
+# Bagian kelas mulai ==================================================================
+class Front(Node):
+    def __init__(self):
+
+        # Pengaturan umum
+        model = Model()
+        config = model.front_camera
+
+        # Pengaturan ROS2
+        super().__init__(node_name='front')
+        
+        # Pengaturan Jetson
+        self.net_ = jetson_inference.detectNet(
+            model=config[4], 
+            labels=config[5],
+            input_blob='input_0',
+            output_cvg='scores',
+            output_bbox='boxes', 
+            threshold=config[6]
+        )
+        
+        # Pengaturan kamera
+        self.front_camera = cv.VideoCapture(config[2], cv.CAP_V4L)
+        self.front_camera.set(3, config[0])
+        self.front_camera.set(4, config[1])
+        self.timer = self.create_timer(0.1, self.processing_image)
+
+        # Pengaturan serial arduino
+        self.serial_port = serial.Serial(config[3], baudrate=9600)
+
+    def processing_image(self):
+        ret, frame = self.front_camera.read()
+        if ret:
+            frame_cuda = jetson_utils.cudaFromNumpy(frame)
+            detections = self.net_.Detect(frame_cuda)
+
+            # Pengaturan data kelas
+            class_properties = {
+                'ROBOT': {'color': (0, 255, 0), 'text_color': (0, 255, 0)},
+                'BOLA': {'color': (0, 165, 255), 'text_color': (0, 165, 255)},
+                'PENGHALANG': {'color': (0, 0, 255), 'text_color': (0, 0, 255)},
+                'GAWANG': {'color': (255, 0, 0), 'text_color': (255, 0, 0)}
+            }
+
+            for info in detections:
+                x1, y1, x2, y2, centeroid = int(info.Left), int(info.Top), int(info.Right), int(info.Bottom), info.Center
+                class_name = self.net_.GetClassDesc(info.ClassID)
+
+                # Mengambil properti warna dan teks dari dictionary
+                class_props = class_properties.get(class_name)
+                if class_props:
+                    color = class_props['color']
+                    text_color = class_props['text_color']
+
+                    cv.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+                    cv.putText(frame, class_name, (x1, y1 - 10), cv.FONT_HERSHEY_PLAIN, 1.5, text_color, 2)
+                    cv.circle(frame, (int(centeroid[0]), int(centeroid[1])), 5, color, -1)
+
+        self.serial_arduino(class_name)
+        fps_text = "FPS: {:.0f}".format(self.net_.GetNetworkFPS())
+        cv.putText(frame, fps_text, (10, 20), cv.FONT_HERSHEY_PLAIN, 1.0, (255, 255, 255), 2)
+        cv.imshow('Result', frame)
+        key = cv.waitKey(1)
+        if key == ord('q'):
+            cv.destroyAllWindows()
+            self.destroy_node()
+            self.get_logger().info('Mematikan kamera...')
+
+    def destroy_node(self):
+        self.front_camera.release()
+        cv.destroyAllWindows()
+        super().destroy_node()
+    
+    def serial_arduino(self, msg:str):
+        self.serial_port.write(msg.encode())
+        self.serial_port.flush()
+# Bagian kelas selesai ===========================================================
+
+# Bagian main mulai ==============================================================
+def main(args=None):
+    rclpy.init(args=args)
+    node = Front()
+    try:
+        rclpy.spin(node)
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+# Bagian main selesai ============================================================
