@@ -66,7 +66,6 @@ class Front(Node):
                     cv.putText(frame, class_name, (x1, y1 - 10), cv.FONT_HERSHEY_PLAIN, 1.5, text_color, 2)
                     cv.circle(frame, (int(centeroid[0]), int(centeroid[1])), 5, color, -1)
 
-        self.serial_arduino(class_name)
         fps_text = "FPS: {:.0f}".format(self.net_.GetNetworkFPS())
         cv.putText(frame, fps_text, (10, 20), cv.FONT_HERSHEY_PLAIN, 1.0, (255, 255, 255), 2)
         cv.imshow('Result', frame)
