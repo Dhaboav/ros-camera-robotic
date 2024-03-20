@@ -34,20 +34,12 @@
 
 ### Structure
 ```
-. 
-├── kamera
-|   |
-|   ├── __init__.py
-|   ├── front.py
-|   └── omni.py
-|
-├── komunikasi
-|   |
-|   ├── __init__.py
-|   ├── client_side.py
-|   └── ros_receiver_control.py
-|
+.
+├── __init__.py
 ├── .gitignore
+├── front.py
+├── model.py
+├── omni.py
 ├── README.md
 └── settings.json
 ```
