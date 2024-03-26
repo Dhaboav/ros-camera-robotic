@@ -33,6 +33,7 @@ class Front(Node):
         self.front_camera = cv.VideoCapture(config[2], cv.CAP_V4L)
         self.front_camera.set(3, config[0])
         self.front_camera.set(4, config[1])
+        self.front_camera.set(cv.CAP_PROP_AUTOFOCUS, 0)
         self.timer = self.create_timer(0.1, self.processing_image)
 
         # Pengaturan serial arduino
