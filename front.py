@@ -10,11 +10,13 @@ from rclpy.node import Node
 
 # Bagian kelas mulai ==================================================================
 class Front(Node):
-    def __init__(self):
+    def __init__(self) -> None:
 
         # Pengaturan umum
         model = Model()
-        config = model.front_camera
+        config: list = model.front_camera
+        self.depth: list[int] = model.depth
+        self.focal: int = model.focal_length
 
         # Pengaturan ROS2
         super().__init__(node_name='front')
@@ -39,7 +41,13 @@ class Front(Node):
         # Pengaturan serial arduino
         self.serial_port = serial.Serial(config[3], baudrate=9600)
 
-    def processing_image(self):
+    def focal_length(self, pixel_width, distance:int, real_width:int) -> float:
+        return (pixel_width * distance) / real_width
+    
+    def depth_estimation(self, focal_length:int, real_width:int, pixel_width) -> float:
+        return (real_width * focal_length) / pixel_width
+    
+    def processing_image(self) -> None:
         ret, frame = self.front_camera.read()
         if ret:
             frame_cuda = jetson_utils.cudaFromNumpy(frame)
@@ -62,12 +70,15 @@ class Front(Node):
                 if class_props:
                     color = class_props['color']
                     text_color = class_props['text_color']
+                    pixel_width = int((x2 - x1) * frame.shape[1]) if 0 <= x1 <= 1 and 0 <= x2 <= 1 else int(x2 - x1)
+                    depth_est = self.depth_estimation(self.focal, self.depth.get(class_name), pixel_width)
 
+                    # Draw
                     cv.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-                    cv.putText(frame, class_name, (x1, y1 - 10), cv.FONT_HERSHEY_PLAIN, 1.5, text_color, 2)
+                    cv.putText(frame, f'{class_name}:{int(depth_est)} CM', (x1, y1 - 10), cv.FONT_HERSHEY_PLAIN, 1.5, text_color, 2)
                     cv.circle(frame, (int(centeroid[0]), int(centeroid[1])), 5, color, -1)
 
-        fps_text = "FPS: {:.0f}".format(self.net_.GetNetworkFPS())
+        fps_text = 'FPS: {:.0f}'.format(self.net_.GetNetworkFPS())
         cv.putText(frame, fps_text, (10, 20), cv.FONT_HERSHEY_PLAIN, 1.0, (255, 255, 255), 2)
         cv.imshow('Result', frame)
         key = cv.waitKey(1)
@@ -76,12 +87,12 @@ class Front(Node):
             self.destroy_node()
             self.get_logger().info('Mematikan kamera...')
 
-    def destroy_node(self):
+    def destroy_node(self) -> None:
         self.front_camera.release()
         cv.destroyAllWindows()
         super().destroy_node()
     
-    def serial_arduino(self, msg:str):
+    def serial_arduino(self, msg:str) -> None:
         self.serial_port.write(msg.encode())
         self.serial_port.flush()
 # Bagian kelas selesai ===========================================================

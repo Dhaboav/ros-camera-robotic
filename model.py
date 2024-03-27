@@ -10,7 +10,7 @@ class Model:
         with open(json_path) as json_file:
             json_data = json.load(json_file)
 
-        self.front_camera = [
+        self.front_camera: list = [
             json_data['widthCamera'],
             json_data['heightCamera'],
             json_data['frontCamera']['index'],
@@ -20,7 +20,7 @@ class Model:
             json_data['frontCamera']['threshold']
         ]
         
-        self.omni_camera = [
+        self.omni_camera: list = [
             json_data['widthCamera'],
             json_data['heightCamera'],
             json_data['omniCamera']['index'],
@@ -33,3 +33,13 @@ class Model:
             json_data['omniCamera']['erodeValue'],
             json_data['omniCamera']['dilasiValue']
         ]
+
+        self.depth: dict[int] = {
+            'BOLA': json_data['depthData']['bola'],
+            'ROBOT' : json_data['depthData']['robot'],
+            'GAWANG': json_data['depthData']['gawang'],
+            'PENGHALANG' : json_data['depthData']['penghalang']
+        }
+
+        self.focal_length: int = json_data['focalLength']
+        self.real_distance: int = json_data['realDist']
