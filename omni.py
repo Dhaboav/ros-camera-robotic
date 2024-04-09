@@ -23,8 +23,8 @@ class Omni(Node):
         self.omni_camera.set(4, config[1])
         
         # Pengaturan warna bola (orange)
-        self.lower_value = config[6]
-        self.upper_value = config[7]
+        self.lower_value = np.array(config[6])
+        self.upper_value = np.array(config[7])
 
         # Pengaturan titik tengah omni
         self.x_omni = config[4]
@@ -39,7 +39,7 @@ class Omni(Node):
         self.timer = self.create_timer(0.1, self.ball_detection)
 
         # Pengaturan serial arduino
-        self.serial_port = serial.Serial(config[3], baudrate=9600)
+        # self.serial_port = serial.Serial(config[3], baudrate=9600)
 
     # Menghitung distance asli dari bola ke titik pusat robot
     def exponential_function(self, x):
@@ -55,12 +55,14 @@ class Omni(Node):
             convert_hsv = cv.cvtColor(src=frame, code=cv.COLOR_BGR2HSV)
             color_mask = cv.inRange(src=convert_hsv, lowerb=self.lower_value, upperb=self.upper_value)
             kernel = np.ones((self.kernel[0], self.kernel[1]), np.uint8)
-            erode = cv.erode(color_mask, kernel, iterations=self.erosi)
-            dilated = cv.dilate(erode, None, iterations=self.dilasi)
+            # erode = cv.erode(color_mask, kernel, iterations=self.erosi)
+            dilated = cv.dilate(color_mask, kernel, iterations=self.dilasi)
             contours, _ = cv.findContours(color_mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
             j = 0
             xyj = 0
             angle = 0
+            sumbu_x = 0
+            sumbu_y = 0
             for contour in contours:
                 area = cv.contourArea(contour)
 
@@ -80,14 +82,13 @@ class Omni(Node):
                         if angle_j_to_x > 0:
                             angles = float(self.map_float(angle_j_to_x, 0, 180, 0, 180))
                             angle = angles
-                            # print(f"Jarak : {xyj:.2f} cm                Sudut : {angle:.2f}°")
+                           
                         elif angle_j_to_x < 0:
                             angles = float(self.map_float(angle_j_to_x, 0, -180, 0, -180))
                             angle = angles
-                            # print(f"Jarak : {xyj:.2f} cm                Sudut : {angle:.2f}°")
+                           
                         sumbu_y = xyj * np.cos(np.radians(angle))
                         sumbu_x = xyj * np.sin(np.radians(angle))
-                        print(f"Sumbu X: {sumbu_x:.2f} cm, Sumbu Y: {sumbu_y:.2f} cm")
                     elif j<39:
                         xyj = self.map_float(j, 20, 39, 0 , 30.9)
                         angle_j_to_x = np.degrees(np.arctan2(x - self.x_omni, y - self.y_omni))
@@ -95,14 +96,14 @@ class Omni(Node):
                         if angle_j_to_x > 0:
                             angles = float(self.map_float(angle_j_to_x, 0, 180, 180, 0))
                             angle = angles
-                            # print(f"Jarak : {xyj:.2f} cm                Sudut : {angle:.2f}°")
+                           
                         elif angle_j_to_x < 0:
                             angles = float(self.map_float(angle_j_to_x, 0, -180, -180, 0))
                             angle = angles
-                            # print(f"Jarak : {xyj:.2f} cm                Sudut : {angle:.2f}°")
-                        sumbu_y = xyj * np.cos(np.radians(angle))
-                        sumbu_x = xyj * np.sin(np.radians(angle))
-                        print(f"Sumbu X: {sumbu_x:.2f} cm, Sumbu Y: {sumbu_y:.2f} cm")
+                            
+                        sumbu_y = xyj * np.cos(np.radians(angle)) 
+                        sumbu_x = xyj * np.sin(np.radians(angle)) 
+                      
 
                     # Titik tengah
                     cv.circle(frame, center, 2, (0, 255, 0), -1)
@@ -122,12 +123,12 @@ class Omni(Node):
                 cv.destroyAllWindows()
                 self.destroy_node()
             
-            self.get_logger().info(f'{distance_estimation:.0f}')
-            self.serial_arduino(int(distance_estimation))
+            self.get_logger().info(f'Sumbu X: {sumbu_x:.2f} cm, Sumbu Y: {sumbu_y:.2f} cm')
+            # self.serial_arduino(int(distance_estimation))
 
-    def serial_arduino(self, msg:int):
-        self.serial_port.write(bytes([msg]))
-        self.serial_port.flush()
+    # def serial_arduino(self, msg:int):
+    #     self.serial_port.write(bytes([msg]))
+    #     self.serial_port.flush()
 
     def destroy_node(self):
         self.omni_camera.release()
