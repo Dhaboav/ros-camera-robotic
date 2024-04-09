@@ -2,6 +2,7 @@
 import rclpy
 import serial
 import cv2 as cv
+import numpy as np
 import jetson_utils
 from ros_robot.model import Model
 import jetson_inference
@@ -77,6 +78,24 @@ class Front(Node):
                     cv.rectangle(frame, (x1, y1), (x2, y2), color, 2)
                     cv.putText(frame, f'{class_name}:{int(depth_est)} CM', (x1, y1 - 10), cv.FONT_HERSHEY_PLAIN, 1.5, text_color, 2)
                     cv.circle(frame, (int(centeroid[0]), int(centeroid[1])), 5, color, -1)
+
+                if class_name == 'GAWANG':
+                    center_gawang = centeroid
+                    y1g = y1
+                if class_name == 'PENGHALANG':
+                    center_penghalang = centeroid
+                    x1p, x2p, y2p = x1, x2, y2
+
+                #  Kiri
+                x_kiri = x1p - center_gawang[0] 
+                y_kiri = y2p - center_gawang[1]
+                #  Kanan
+                x_kanan = x2p + center_penghalang[0]
+                y_kanan = y2p - center_penghalang[1]
+
+                x_target, y_target = (int(x_kiri), int(y_kiri)) if center_gawang[0] > center_penghalang[1] else (int(x_kanan), int(y_kanan))
+                if center_gawang[1] > y1g and center_penghalang[1] > y1g:
+                    cv.circle(frame, (x_target, y_target), 5, (255, 255, 255), -1)
 
         fps_text = 'FPS: {:.0f}'.format(self.net_.GetNetworkFPS())
         cv.putText(frame, fps_text, (10, 20), cv.FONT_HERSHEY_PLAIN, 1.0, (255, 255, 255), 2)

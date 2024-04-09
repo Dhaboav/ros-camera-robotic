@@ -47,7 +47,7 @@ class Omni(Node):
     
     def map_float(self, perimeter, in_min, in_max, out_min, out_max):
         return int((perimeter - in_min) * (out_max - out_min) / (in_max - in_min) + out_min)
-    
+
     def ball_detection(self):
         distance_estimation = 0
         ret, frame = self.omni_camera.read()
@@ -58,7 +58,9 @@ class Omni(Node):
             erode = cv.erode(color_mask, kernel, iterations=self.erosi)
             dilated = cv.dilate(erode, None, iterations=self.dilasi)
             contours, _ = cv.findContours(color_mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
-            distance = 0
+            j = 0
+            xyj = 0
+            angle = 0
             for contour in contours:
                 area = cv.contourArea(contour)
 
@@ -70,8 +72,37 @@ class Omni(Node):
 
                     ((x, y), radius) = cv.minEnclosingCircle(contour)
                     center = (int(x), int(y))
-                    distance = np.sqrt((x - self.x_omni) ** 2 + (y - self.y_omni) ** 2)  # Menghitung distance piksel dari objek ke titik tengah
-                    distance_estimation = self.exponential_function(distance)
+                    j = np.sqrt((x - self.x_omni) ** 2 + (y - self.y_omni) ** 2)
+                    if j >=39:
+                        xyj = self.exponential_function(j)
+                        angle_j_to_x = np.degrees(np.arctan2(x - self.x_omni, y - self.y_omni))
+
+                        if angle_j_to_x > 0:
+                            angles = float(self.map_float(angle_j_to_x, 0, 180, 0, 180))
+                            angle = angles
+                            # print(f"Jarak : {xyj:.2f} cm                Sudut : {angle:.2f}°")
+                        elif angle_j_to_x < 0:
+                            angles = float(self.map_float(angle_j_to_x, 0, -180, 0, -180))
+                            angle = angles
+                            # print(f"Jarak : {xyj:.2f} cm                Sudut : {angle:.2f}°")
+                        sumbu_y = xyj * np.cos(np.radians(angle))
+                        sumbu_x = xyj * np.sin(np.radians(angle))
+                        print(f"Sumbu X: {sumbu_x:.2f} cm, Sumbu Y: {sumbu_y:.2f} cm")
+                    elif j<39:
+                        xyj = self.map_float(j, 20, 39, 0 , 30.9)
+                        angle_j_to_x = np.degrees(np.arctan2(x - self.x_omni, y - self.y_omni))
+
+                        if angle_j_to_x > 0:
+                            angles = float(self.map_float(angle_j_to_x, 0, 180, 180, 0))
+                            angle = angles
+                            # print(f"Jarak : {xyj:.2f} cm                Sudut : {angle:.2f}°")
+                        elif angle_j_to_x < 0:
+                            angles = float(self.map_float(angle_j_to_x, 0, -180, -180, 0))
+                            angle = angles
+                            # print(f"Jarak : {xyj:.2f} cm                Sudut : {angle:.2f}°")
+                        sumbu_y = xyj * np.cos(np.radians(angle))
+                        sumbu_x = xyj * np.sin(np.radians(angle))
+                        print(f"Sumbu X: {sumbu_x:.2f} cm, Sumbu Y: {sumbu_y:.2f} cm")
 
                     # Titik tengah
                     cv.circle(frame, center, 2, (0, 255, 0), -1)
