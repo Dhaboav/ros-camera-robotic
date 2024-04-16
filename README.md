@@ -41,6 +41,6 @@
 ├── model.py
 ├── omni.py
 ├── README.md
-└── settings.json
+└── settings.py
 ```
 <p align="right">(<a href="#readme-top">Kembali ke atas</a>)</p>

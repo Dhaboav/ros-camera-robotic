@@ -62,6 +62,9 @@ class Front(Node):
                 'GAWANG': {'color': (255, 0, 0), 'text_color': (255, 0, 0)}
             }
 
+            y1g, x1p, x2p, y2p = 0, 0, 0, 0
+            center_gawang = (0, 0)
+            center_penghalang = (0, 0)
             for info in detections:
                 x1, y1, x2, y2, centeroid = int(info.Left), int(info.Top), int(info.Right), int(info.Bottom), info.Center
                 class_name = self.net_.GetClassDesc(info.ClassID)
