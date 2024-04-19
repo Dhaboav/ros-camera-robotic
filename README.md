@@ -4,7 +4,7 @@
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
-<h3 align="center">ros_robot</h3>
+<h3 align="center">ros_camera</h3>
 
   <p align="center">
     Repositori untuk ros2 package
@@ -27,7 +27,7 @@
 2. Install ROS2
 3. Klon repo dari github.
   ```git
-   git clone https://github.com/Dhaboav/ros_robot.git
+   git clone https://github.com/Dhaboav/ros_camera.git
   ```
 <p align="right">(<a href="#readme-top">Kembali ke atas</a>)</p>
 
@@ -41,6 +41,6 @@
 ├── model.py
 ├── omni.py
 ├── README.md
-└── settings.py
+└── setupROS.py
 ```
 <p align="right">(<a href="#readme-top">Kembali ke atas</a>)</p>
