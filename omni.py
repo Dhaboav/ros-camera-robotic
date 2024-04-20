@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 import rclpy
-import serial
 import cv2 as cv
 import numpy as np
 from typing import Tuple
 from rclpy.node import Node
+from std_msgs.msg import String
 from ros_robot.setupROS import SETTINGS
 
 
@@ -14,8 +14,15 @@ class Omni(Node):
         Initialize the Omni class, which handles image processing and ball detection.
         '''   
         super().__init__(node_name='omni')
+        self.omni_pubs_ = self.create_publisher(String, '/camera/omni', 10)
         self.setup_camera()
         self.setup_color()
+    
+    def send_ball_data(self, message:str):
+        msg = String()
+        msg.data = message
+        self.omni_pubs_.publish(msg)
+        self.get_logger().info(f"Published message: {message}")
 
     # setup start  ===============================================================
     def setup_camera(self) -> None:
@@ -43,12 +50,6 @@ class Omni(Node):
         self.kernel = SETTINGS['omniCamera']['kernelValue']
         self.dilasi = SETTINGS['omniCamera']['dilasiValue']
         self.erosi = SETTINGS['omniCamera']['erodeValue']
-    
-    def setup_serial(self) -> None:
-        '''
-        Setup for serial communication to arduino.
-        '''
-        # self.serial_port = serial.Serial(config[3], baudrate=9600)
     # setup end  ===============================================================
 
     # function start ===============================================================
@@ -69,9 +70,9 @@ class Omni(Node):
         if ret:
             convert_hsv = cv.cvtColor(src=frame, code=cv.COLOR_BGR2HSV)
             color_mask = cv.inRange(src=convert_hsv, lowerb=self.lower_value, upperb=self.upper_value)
-            kernel = np.ones((self.kernel[0], self.kernel[1]), np.uint8)
+            # kernel = np.ones((self.kernel[0], self.kernel[1]), np.uint8)
             # erode = cv.erode(color_mask, kernel, iterations=self.erosi)
-            dilated = cv.dilate(color_mask, kernel, iterations=self.dilasi)
+            # dilated = cv.dilate(color_mask, kernel, iterations=self.dilasi)
             contours, _ = cv.findContours(color_mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
             j = 0
             xyj = 0
@@ -118,8 +119,9 @@ class Omni(Node):
                         sumbu_x = xyj * np.sin(np.radians(angle)) 
                     
                     self.draw_object(frame, x, y, w, h, ball_center)
-            self.display_frame(frame, dilated)
-            self.get_logger().info(f'Sumbu X: {sumbu_x:.2f} cm, Sumbu Y: {sumbu_y:.2f} cm')
+            self.display_frame(frame)
+            ros_message = f'BOLA,{sumbu_x:.0f},{sumbu_y:.0f}'
+            self.send_ball_data(ros_message)
 
     def draw_object(self, frame:np.ndarray, x_bola:int, y_bola:int, w_bola:int, h_bola:int, ball_center: Tuple[int, int]):
         '''
@@ -130,11 +132,10 @@ class Omni(Node):
         cv.circle(frame, (self.x_omni, self.y_omni), 10, (0,255,0), -1)
         cv.line(frame, (self.x_omni, self.y_omni), (ball_center),(0,0,255), 2) 
 
-    def display_frame(self, frame: np.ndarray, dilated: np.ndarray) -> None:
+    def display_frame(self, frame: np.ndarray) -> None:
         '''
         Display the processed frame.
         '''
-        cv.imshow('dark', dilated)
         cv.imshow('result', frame)
         key = cv.waitKey(1)
         if key == ord('q'):

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 import rclpy
-import serial
 import cv2 as cv
 import numpy as np
 import jetson_utils
 import jetson_inference
 from rclpy.node import Node
+from std_msgs.msg import String
 from typing import Dict, Tuple
 from ros_robot.setupROS import SETTINGS
 
@@ -16,9 +16,16 @@ class Front(Node):
         Initialize the Front class, which handles image processing and object detection.
         '''
         super().__init__(node_name='front')
+        self.front_pubs_ = self.create_publisher(String, '/camera/front', 10)
         self.setup_jetson()
         self.setup_camera()
         self.setup_distance()
+
+    def send_class_depth(self, message:str):
+        msg = String()
+        msg.data = message
+        self.front_pubs_.publish(msg)
+        self.get_logger().info(f"Published message: {message}")
 
     # setup start  ===============================================================
     def setup_jetson(self) -> None:
@@ -51,16 +58,12 @@ class Front(Node):
         self.focal = SETTINGS['focalLength']
         self.real_dist = SETTINGS['realDist']
         self.depth = SETTINGS['depthData']
-    
-    def setup_serial(self) -> None:
-        '''
-        Setup for serial communication to arduino.
-        '''
-        # self.serial_port = serial.Serial(config[3], baudrate=9600)
     # setup end  ==================================================================
 
     # function start  =============================================================
     def processing_image(self) -> None:
+        anglegol = 0
+        x1g,y1g, x2g, y2g, x1p,y1p, x2p,y2p, x_gol, x_kiri,x_kanan, y_gol = 0, 0, 0, 0, 0, 0,0,0,0,0,0,0
         '''
         Process the captured image, perform object detection, and display the results.
         '''
@@ -74,6 +77,24 @@ class Front(Node):
                 class_props = self.get_class_properties(class_name)
                 if class_props:
                     self.draw_object(frame, class_name, x1, y1, x2, y2, centeroid, class_props)
+                if class_name == 'PENGHALANG':
+                    x1p,y1p, x2p, y2p = x1, y1, x2, y2
+                if class_name == 'GAWANG':
+                    x1g,y1g, x2g, y2g = x1, y1, x2, y2
+
+                #  Kiri
+                x_kiri = abs((x1p - x1g)/2)+x1g
+                y_gol = abs((y2g - y1g)/2)+y1g
+                #  Kanan
+                x_kanan = abs((x2g-x2p)/2)+x2p
+                if x_kiri > x_kanan:
+                    x_gol = x_kiri
+                elif x_kanan > x_kiri:
+                    x_gol = x_kanan
+                if x_gol > x1g and x_gol < x1p and x_gol > x2p and x_gol < x2g and y_gol> y1g:
+                    cv.circle(frame, (int(x_gol), int(y_gol)), 5, (255, 0, 255), -1)
+                    anglegol = np.interp(x_gol, [0, 640], [-22.5,22.5])
+                    cv.putText(frame, f'{anglegol:.2f}',(int(x_gol),int(y_gol+20)), cv.FONT_HERSHEY_PLAIN, 1.0, (255,0,255),2)
             self.display_frame(frame)
 
     def get_class_properties(self, class_name: str) -> Dict[str, Tuple[int, int, int]]:
@@ -104,32 +125,9 @@ class Front(Node):
         cv.rectangle(frame, (x1, y1), (x2, y2), color, 2)
         cv.putText(frame, f'{class_name}: {depth_est} CM', (x1, y1), cv.FONT_HERSHEY_PLAIN, 1.5, text_color, 2)
         cv.circle(frame, (int(centeroid[0]), int(centeroid[1])), 5, color, -1)
-
-        # anglegol = 0
-        # x1g,y1g, x2g, y2g, x1p,y1p, x2p,y2p, x_gol, x_kiri,x_kanan, y_gol = 0, 0, 0, 0, 0, 0,0,0,0,0,0,0
-        # if class_name == 'PENGHALANG':
-        #     center_penghalang = centeroid
-        #     jarak_penghalang = depth_est
-        #     x1p,y1p, x2p, y2p = x1, y1, x2, y2
-        # if class_name == 'GAWANG':
-        #     center_gawang = centeroid
-        #     jarak_gawang = depth_est
-        #     x1g,y1g, x2g, y2g = x1, y1, x2, y2
-
-        # #  Kiri
-        # # x_kiri = abs((int(x1p) - int(x1g))/2)
-        # x_kiri = x1p-x1g
-        # y_gol = abs((y2g - y1g)/2)+y1g
-        # #  Kanan
-        # x_kanan = abs(int((x2g) - int(x2p))/2)
-        # if x_kiri > x_kanan:
-        #     x_gol = x_kiri
-        # elif x_kanan > x_kiri:
-        #     x_gol = x_kanan
-        # if x_gol > y1g:
-        #     cv.circle(frame, (int(x_gol), int(y_gol)), 5, (255, 0, 255), -1)
-        #     anglegol = np.interp(x_gol, [0, 640], [-22.5,22.5])
-        #     cv.putText(frame, f'{x1g,x2g,x1p,x2p}',(int(x_gol),int(y_gol+50)), cv.FONT_HERSHEY_PLAIN, 1.0, (255,0,255),2)
+        
+        ros_message = f'{class_name},{depth_est},{int(centeroid[0])},{int(centeroid[1])}'
+        self.send_class_depth(ros_message)
 
     def focal_length(self, pixel_width:int, class_name:str) -> int:
         '''
@@ -167,13 +165,6 @@ class Front(Node):
         self.CAMERA.release()
         cv.destroyAllWindows()
         super().destroy_node()
-    
-    def serial_arduino(self, msg:str) -> None:
-        '''
-        Sending message to arduino using serial.
-        '''
-        self.serial_port.write(msg.encode())
-        self.serial_port.flush()
     # etc end =================================================================
 
 # Main start ==========================================================

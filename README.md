@@ -37,8 +37,8 @@
 .
 ├── __init__.py
 ├── .gitignore
+├── control.py
 ├── front.py
-├── model.py
 ├── omni.py
 ├── README.md
 └── setupROS.py
