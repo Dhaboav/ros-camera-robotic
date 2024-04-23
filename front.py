@@ -62,8 +62,9 @@ class Front(Node):
 
     # function start  =============================================================
     def processing_image(self) -> None:
-        anglegol = 0
-        x1g,y1g, x2g, y2g, x1p,y1p, x2p,y2p, x_gol, x_kiri,x_kanan, y_gol = 0, 0, 0, 0, 0, 0,0,0,0,0,0,0
+        anglegol = None
+        ros_message = None
+        x1g, y1g, x2g, y2g, x1p, y1p, x2p, y2p, x_gol, x_kiri, x_kanan, y_gol = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
         '''
         Process the captured image, perform object detection, and display the results.
         '''
@@ -74,27 +75,47 @@ class Front(Node):
             for info in detections:
                 x1, y1, x2, y2, centeroid = int(info.Left), int(info.Top), int(info.Right), int(info.Bottom), info.Center
                 class_name = self.net_.GetClassDesc(info.ClassID)
-                class_props = self.get_class_properties(class_name)
+                class_props = self.get_class_properties(class_name) 
                 if class_props:
-                    self.draw_object(frame, class_name, x1, y1, x2, y2, centeroid, class_props)
+                    color = class_props['color']
+                    text_color = class_props['text_color']
+                    cv.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+                    cv.circle(frame, (int(centeroid[0]), int(centeroid[1])), 5, color, -1)
                 if class_name == 'PENGHALANG':
-                    x1p,y1p, x2p, y2p = x1, y1, x2, y2
+                    x1p, y1p, x2p, y2p = x1, y1, x2, y2
                 if class_name == 'GAWANG':
-                    x1g,y1g, x2g, y2g = x1, y1, x2, y2
+                    x1g, y1g, x2g, y2g = x1, y1, x2, y2
 
                 #  Kiri
-                x_kiri = abs((x1p - x1g)/2)+x1g
-                y_gol = abs((y2g - y1g)/2)+y1g
+                x_kiri = (x1p - x1g) / 2 + x1g
+                y_gol = (y2g - y1g) / 2 + y1g
                 #  Kanan
-                x_kanan = abs((x2g-x2p)/2)+x2p
-                if x_kiri > x_kanan:
+                x_kanan = (x2g - x2p) / 2 + x2p
+                if x1p - x1g > x2g - x2p:
                     x_gol = x_kiri
-                elif x_kanan > x_kiri:
+                else:
                     x_gol = x_kanan
-                if x_gol > x1g and x_gol < x1p and x_gol > x2p and x_gol < x2g and y_gol> y1g:
+                    
+                if x1g < x_gol < x2g and y_gol > y1g and x2p > 0:
+                    anglegol = np.interp(x_gol, [0, 640], [-22.5, 22.5])
+                    
+                if anglegol is not None:
+                    ros_message = f'{anglegol:.2f}'
+                    cv.putText(frame, f'{anglegol:.2f} D',(int(x_gol),int(y_gol+20)), cv.FONT_HERSHEY_PLAIN, 1.0, (255,0,255),2)
                     cv.circle(frame, (int(x_gol), int(y_gol)), 5, (255, 0, 255), -1)
-                    anglegol = np.interp(x_gol, [0, 640], [-22.5,22.5])
-                    cv.putText(frame, f'{anglegol:.2f}',(int(x_gol),int(y_gol+20)), cv.FONT_HERSHEY_PLAIN, 1.0, (255,0,255),2)
+                if anglegol is None:
+                    pixel_width = int(x2 - x1)
+                    depth_est = self.depth_estimation(pixel_width, class_name)
+                    ros_message = f'{class_name},{depth_est},{int(centeroid[0])},{int(centeroid[1])}'
+                    cv.putText(frame, f'{class_name}: {depth_est} CM', (x1, y1), cv.FONT_HERSHEY_PLAIN, 1.5, text_color, 2)
+
+            # Reset anglegol to 0 after processing
+            if ros_message is not None:
+                self.send_class_depth(ros_message)
+            
+            anglegol = None
+            ros_message = None
+
             self.display_frame(frame)
 
     def get_class_properties(self, class_name: str) -> Dict[str, Tuple[int, int, int]]:
@@ -107,27 +128,7 @@ class Front(Node):
             'PENGHALANG': {'color': (0, 0, 255), 'text_color': (0, 0, 255)},
             'GAWANG': {'color': (255, 0, 0), 'text_color': (255, 0, 0)}
         } 
-        return class_properties.get(class_name, {})
-    
-    def draw_object(self, frame: np.ndarray, class_name:str, x1: int, y1: int, 
-                    x2: int, y2: int, centeroid: Tuple[int, int], 
-                    class_props: Dict[str, Tuple[int, int, int]]) -> None:
-        '''
-        Draw bounding box and label for the detected object.
-        '''
-        color = class_props['color']
-        text_color = class_props['text_color']
-        pixel_width = int(x2 - x1)
-        depth_est = self.depth_estimation(pixel_width, class_name)
-        # angle = np.interp(centeroid[0], [0, 640], [-22.5, 22.5])
-        # sumbu_x = depth_est * np.sin(angle)
-        # sumbu_y = depth_est * np.cos(angle)
-        cv.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-        cv.putText(frame, f'{class_name}: {depth_est} CM', (x1, y1), cv.FONT_HERSHEY_PLAIN, 1.5, text_color, 2)
-        cv.circle(frame, (int(centeroid[0]), int(centeroid[1])), 5, color, -1)
-        
-        ros_message = f'{class_name},{depth_est},{int(centeroid[0])},{int(centeroid[1])}'
-        self.send_class_depth(ros_message)
+        return class_properties.get(class_name, {})        
 
     def focal_length(self, pixel_width:int, class_name:str) -> int:
         '''
