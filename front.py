@@ -100,13 +100,13 @@ class Front(Node):
                     anglegol = np.interp(x_gol, [0, 640], [-22.5, 22.5])
                     
                 if anglegol is not None:
-                    ros_message = f'{anglegol:.2f}'
+                    ros_message = f'targetGoal, 0, 0, 0, {anglegol:.2f}'
                     cv.putText(frame, f'{anglegol:.2f} D',(int(x_gol),int(y_gol+20)), cv.FONT_HERSHEY_PLAIN, 1.0, (255,0,255),2)
                     cv.circle(frame, (int(x_gol), int(y_gol)), 5, (255, 0, 255), -1)
                 if anglegol is None:
                     pixel_width = int(x2 - x1)
                     depth_est = self.depth_estimation(pixel_width, class_name)
-                    ros_message = f'{class_name},{depth_est},{int(centeroid[0])},{int(centeroid[1])}'
+                    ros_message = f'{class_name},{depth_est},{int(centeroid[0])},{int(centeroid[1])}, 0'
                     cv.putText(frame, f'{class_name}: {depth_est} CM', (x1, y1), cv.FONT_HERSHEY_PLAIN, 1.5, text_color, 2)
 
             # Reset anglegol to 0 after processing

@@ -83,7 +83,7 @@ class Omni(Node):
                 area = cv.contourArea(contour)
 
                 # Memfilter kontur berdasarkan luas (sesuaikan sesuai kebutuhan)
-                if area > 1:
+                if area > 5:
                     x, y, w, h = cv.boundingRect(contour)
                     ((x_bola, y_bola), radius) = cv.minEnclosingCircle(contour)
                     ball_center = (int(x_bola), int(y_bola))
@@ -120,7 +120,7 @@ class Omni(Node):
                     
                     self.draw_object(frame, x, y, w, h, ball_center)
             self.display_frame(frame)
-            ros_message = f'BOLA,{sumbu_x:.0f},{sumbu_y:.0f}'
+            ros_message = f'{sumbu_x:.0f},{sumbu_y:.0f}'
             self.send_ball_data(ros_message)
 
     def draw_object(self, frame:np.ndarray, x_bola:int, y_bola:int, w_bola:int, h_bola:int, ball_center: Tuple[int, int]):
